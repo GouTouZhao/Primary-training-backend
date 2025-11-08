@@ -1,0 +1,40 @@
+# Visual Studio 生成文件
+*.obj
+*.pdb
+*.idb
+*.exe
+*.dll
+*.lib
+*.sln.docstates
+*.log
+*.tlog
+*.ipch
+*.suo
+*.user
+*.filters
+
+# 编译输出
+/x64/
+/Release/
+/Debug/
+/build/
+/out/
+/bin/
+/dist/
+/.vs/
+
+# Qt 生成文件
+Makefile*
+*.qmake.stash
+*.qmake.cache
+*.moc
+*.qmlc
+*.pro.user
+*.obj
+*.o
+*.rcc
+*.qrc.dep
+
+# 其他系统文件
+.DS_Store
+Thumbs.db
