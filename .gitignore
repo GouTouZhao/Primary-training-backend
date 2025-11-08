@@ -12,6 +12,10 @@
 *.suo
 *.user
 *.filters
+*.qtvscr
+*.sln
+*.vcxproj
+
 
 # 编译输出
 /x64/
@@ -22,6 +26,7 @@
 /bin/
 /dist/
 /.vs/
+/backend/
 
 # Qt 生成文件
 Makefile*
