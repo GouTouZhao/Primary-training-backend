@@ -1,25 +1,27 @@
-#include<QCoreApplication>
-#include<QHttpServer>
-#include<QTcpServer>
+#include <QCoreApplication>
+#include <QHttpServer>
+#include <QTcpServer>
+#include <QHostAddress>
 #include <QDebug>
 
-int main(int argc, char* argv[]) {
-	QCoreApplication app(argc, argv);
-	QHttpServer server;
+int main(int argc, char* argv[])
+{
+    QCoreApplication app(argc, argv);
 
-	auto tcpServer = new QTcpServer(&app);
+    QTcpServer tcpServer;
+    if (!tcpServer.listen(QHostAddress::Any, 8080)) {
+        qWarning() << "yes" << tcpServer.errorString();
+        return -1;
+    }
 
-	if (!tcpServer->listen(QHostAddress::Any, 8080)) {
-		qCritical() << "8080";
-		return -1;
-	}
+    QHttpServer server;
+    server.route("/", []() {
+        return "Hello, Qt HttpServer!";
+        });
 
-	if (!server.bind(tcpServer)) {
-		qCritical() << "tcp to http";
-		return -1;
-	}
+    server.bind(&tcpServer);
 
-	qDebug() << "HTTP server running on port" << tcpServer->serverPort();
+    qInfo() << "123213" << tcpServer.serverPort();
 
-	return app.exec();
+    return app.exec();
 }
