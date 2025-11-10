@@ -1,30 +1,41 @@
-# 使用 Ubuntu 22.04 作为基础镜像（稳定且支持 Qt6）
-FROM ubuntu:22.04
+# 使用 Ubuntu 24.04 作为基础镜像
+FROM ubuntu:24.04
 
-# 关闭 tzdata 的交互式安装提示
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 安装构建工具与所需 Qt6 模块
-RUN apt-get update && apt-get install -y \
+# 1️⃣ 修复证书 + 替换为清华源
+RUN apt-get update && apt-get install -y ca-certificates apt-transport-https gnupg && \
+    echo "deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ noble main restricted universe multiverse\n\
+deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ noble-updates main restricted universe multiverse\n\
+deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ noble-backports main restricted universe multiverse\n\
+deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ noble-security main restricted universe multiverse" > /etc/apt/sources.list && \
+    apt-get update
+
+# 2️⃣ 安装基础依赖和 Qt6 开发组件
+RUN apt-get install -y \
     build-essential \
-    pkg-config \
+    cmake \
+    git \
     qt6-base-dev \
-    qt6-network-dev \
+    qt6-base-private-dev \
+    qt6-tools-dev \
+    qt6-declarative-dev \
+    qt6-websockets-dev \
+    qt6-networkauth-dev \
     qt6-httpserver-dev \
-    qt6-sql-dev \
+    qt6-connectivity-dev \
+    qt6-svg-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# 设置工作目录
+# 4️⃣ 拷贝你的源码
 WORKDIR /app
-
-# 拷贝项目源码到容器
 COPY . .
 
-# 编译 Qt 程序（假设入口是 main.cpp）
-RUN g++ main.cpp -o backend `pkg-config --cflags --libs Qt6Core Qt6Network Qt6HttpServer Qt6Sql`
+# 5️⃣ 构建你的 Qt 项目
+RUN cmake -B build -S . && cmake --build build -j$(nproc)
 
-# 暴露服务端口
+# 6️⃣ 开放端口
 EXPOSE 8080
 
-# 启动服务
-CMD ["./backend"]
+# 7️⃣ 启动命令
+CMD ["./build/backend"]
