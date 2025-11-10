@@ -17,6 +17,8 @@ bool MysqlInitDB::init() {
 	db.setDatabaseName("sixonezero");
 	db.setPort(4000);
 
+	db.setConnectOptions("SSL_CA=./isrgrootx1.pem;SSL_VERIFY_SERVER_CERT=1");
+
 	if (!db.open()) {
 		qWarning() << "" << db.lastError().text();
 		return false;
