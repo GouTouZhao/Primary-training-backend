@@ -5,6 +5,7 @@
 
 
 void UserRegister::setupRoute(QHttpServer& server) {
+
 	server.route("/Register", QHttpServerRequest::Method::Post,
 		[](const QHttpServerRequest& request) {
 			QJsonParseError parseError;

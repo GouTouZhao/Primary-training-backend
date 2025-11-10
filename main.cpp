@@ -3,8 +3,19 @@
 #include <QTcpServer>
 #include <QHostAddress>
 #include <QDebug>
+#include<QHttpServerResponse>
+#include <functional>
 #include"initDB.h"
 #include"Login.h"
+
+static void addCorsHeaders(QHttpServerResponse& res)
+{
+    QHttpHeaders headers = res.headers();
+    headers.replaceOrAppend(QHttpHeaders::WellKnownHeader::AccessControlAllowOrigin, "*");
+    headers.replaceOrAppend(QHttpHeaders::WellKnownHeader::AccessControlAllowMethods, "GET, POST, OPTIONS");
+    headers.replaceOrAppend(QHttpHeaders::WellKnownHeader::AccessControlAllowHeaders, "Content-Type");
+    res.setHeaders(headers);
+}
 
 int main(int argc, char* argv[])
 {
@@ -22,15 +33,30 @@ int main(int argc, char* argv[])
 
     QHttpServer server;
     //接口目录
+
     server.route("/", []() {
         return "Hello, HttpServer 已运行";
         });
 
     UserRegister::setupRoute(server);
 
+
+
+
+
+    server.addAfterRequestHandler(&server, [](const QHttpServerRequest&, QHttpServerResponse& res) {
+        addCorsHeaders(res);
+        });
+
+    server.route(".*", QHttpServerRequest::Method::Options, []() {
+        QHttpServerResponse res(QHttpServerResponse::StatusCode::Ok);
+        addCorsHeaders(res);
+        return res;
+        });
+
     server.bind(&tcpServer);
 
-    qInfo() << "123213" << tcpServer.serverPort();
+    qInfo() << "运行在端口：" << tcpServer.serverPort();
 
     return app.exec();
 }
