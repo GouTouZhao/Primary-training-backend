@@ -42,6 +42,7 @@ int main(int argc, char* argv[])
         return res;
         });
 
+    qInfo() << "Server listening on:" << tcpServer.serverAddress().toString() << tcpServer.serverPort();
 
     qInfo() << "运行在端口：" << tcpServer.serverPort();
 
