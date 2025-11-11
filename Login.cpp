@@ -36,12 +36,8 @@ void UserRegister::setupRoute(QHttpServer& server) {
 				QJsonObject resObj;
 				resObj["success"] = false;
 				resObj["errors"] = "必填项为空";
-				QHttpServerResponse res (QJsonDocument(resObj).toJson(),
-					"application/json", 
-					QHttpServerResponse::StatusCode::BadRequest);
-				addCorsHeaders(res);
 				qDebug() << "error in 必填项检测";
-				return res;
+				return makeJsonResponse(resObj, QHttpServerResponse::StatusCode::BadRequest);
 			}
 			qDebug() << "pass 必填项";
 			if (username.length() > 30) {
