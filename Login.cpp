@@ -9,22 +9,14 @@ void UserRegister::setupRoute(QHttpServer& server) {
 
 	server.route("/Register", QHttpServerRequest::Method::Post,
 		[](const QHttpServerRequest& request) {
-			qDebug() << "请求进入 /Register ";
-			qDebug() << "Request body: /Register" << request.body();
 			QJsonParseError parseError;
 			QJsonDocument doc = QJsonDocument::fromJson(request.body(),&parseError);
 			if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
-				QJsonObject resObj;
-				resObj["success"] = false;
-				resObj["errors"] = "Json格式非法";
-				QHttpServerResponse res (QJsonDocument(resObj).toJson(), 
-					"application/json", 
-					QHttpServerResponse::StatusCode::BadRequest);
-				addCorsHeaders(res);
-				qDebug() << "[POST] JSON Parse error:" << parseError.errorString();
-				return res;
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "Json格式非法";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
 			}
-			qDebug() << "pass Json格式检测";
 			QJsonObject obj = doc.object();
 
 
@@ -33,45 +25,31 @@ void UserRegister::setupRoute(QHttpServer& server) {
 			QString password = obj.value("password").toString();
 
 			if (email.isEmpty() || username.isEmpty() || password.isEmpty()) {
-				QJsonObject resObj;
-				resObj["success"] = false;
-				resObj["errors"] = "必填项为空";
-				qDebug() << "error in 必填项检测";
-				return makeJsonResponse(resObj, QHttpServerResponse::StatusCode::BadRequest);
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "必填项为空";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
 			}
-			qDebug() << "pass 必填项";
 			if (username.length() > 30) {
-				QJsonObject resObj;
-				resObj["success"] = false;
-				resObj["errors"] = "username 过长（max:30）";
-				QHttpServerResponse res (QJsonDocument(resObj).toJson(),
-					"application/json", 
-					QHttpServerResponse::StatusCode::BadRequest);
-				addCorsHeaders(res);
-				return res;
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "username 过长（max:30）";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
 			}
 			if (password.length() < 6) {
-				QJsonObject resObj;
-				resObj["success"] = false;
-				resObj["errors"] = "password过短（min:6）";
-				QHttpServerResponse res (QJsonDocument(resObj).toJson(),
-					"application/json", 
-					QHttpServerResponse::StatusCode::BadRequest);
-				addCorsHeaders(res);
-				return res;
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "password过短（min:6）";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
 			}
 
 
 			QSqlDatabase mysql = MysqlInitDB::getMysql();
 			if (!mysql.isOpen()) {
-				QJsonObject resObj;
-				resObj["success"] = false;
-				resObj["errors"] = "后端数据库未连接";
-				QHttpServerResponse res (QJsonDocument(resObj).toJson(),
-					"application/json", 
-					QHttpServerResponse::StatusCode::InternalServerError);
-				addCorsHeaders(res);
-				return res;
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "后端数据库未连接";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
 			}
 
 			QSqlQuery db(mysql);
@@ -79,75 +57,55 @@ void UserRegister::setupRoute(QHttpServer& server) {
 			db.prepare("SELECT COUNT(*) FROM users WHERE username = ?");
 			db.addBindValue(username);
 			if (!db.exec() || !db.next()) {
-				QJsonObject resObj;
-				resObj["success"] = false;
-				resObj["errors"] = "数据库查询失败";
-				QHttpServerResponse res (QJsonDocument(resObj).toJson(),
-					"application/json", 
-					QHttpServerResponse::StatusCode::InternalServerError);
-				addCorsHeaders(res);
-				return res;
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "数据库查询失败";
+				return makeJsonResponse(res,QHttpServerResponse::StatusCode::InternalServerError);
 			}
 			if (db.value(0).toInt() > 0) {
-				QJsonObject resObj;
-				resObj["success"] = false;
-				resObj["errors"] = "用户名已被使用";
-				QHttpServerResponse res (QJsonDocument(resObj).toJson(),
-					"application/json",
-					QHttpServerResponse::StatusCode::BadRequest);
-				addCorsHeaders(res);
-				return res;
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "用户名已被使用";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
 			}
 
 			db.prepare("SELECT COUNT(*) FROM users WHERE email = ?");
 			db.addBindValue(email);
 			if (!db.exec() || !db.next()) {
-				QJsonObject resObj;
-				resObj["success"] = false;
-				resObj["errors"] = "数据库查询失败";
-				QHttpServerResponse res (QJsonDocument(resObj).toJson(),
-					"application/json",
-					QHttpServerResponse::StatusCode::InternalServerError);
-				addCorsHeaders(res);
-				return res;
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "数据库查询失败";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
 			}
 			if (db.value(0).toInt() > 0) {
-				QJsonObject resObj;
-				resObj["success"] = false;
-				resObj["errors"] = "邮箱已被注册";
-				QHttpServerResponse res (QJsonDocument(resObj).toJson(),
-					"application/json",
-					QHttpServerResponse::StatusCode::BadRequest);
-				addCorsHeaders(res);
-				return res;
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "邮箱已被注册";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
 			}
 
 			QByteArray passwordhash = QCryptographicHash::hash(password.toUtf8(),
 				QCryptographicHash::Sha256).toHex();
 
-			db.prepare("INSERT INTO users (email,username,password) VALUES (?,?,?)");
-			db.addBindValue(email);
-			db.addBindValue(username);
-			db.addBindValue(QString::fromUtf8(passwordhash));
-			if (!db.exec()) {
-				QJsonObject resObj;
-				resObj["success"] = false;
-				resObj["errors"] = "数据库插入新用户失败" + db.lastError().text();
-				QHttpServerResponse res (QJsonDocument(resObj).toJson(),
-					"application/json",
-					QHttpServerResponse::StatusCode::InternalServerError);
-				addCorsHeaders(res);
-				return res;
+			QSqlQuery query(mysql);
+			query.prepare("INSERT INTO users (email,username,password_hash) VALUES (?,?,?)");
+			query.addBindValue(email);
+			query.addBindValue(username);
+			query.addBindValue(QString::fromUtf8(passwordhash));
+			if (!query.exec()) {
+				QSqlError err = query.lastError();
+				qDebug() << query.lastQuery() << "\n" << err.text() << "\n" << err.driverText()
+					<< "\n" << err.databaseText() << "\n" << err.isValid();
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "数据库插入新用户失败";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
 			}
 
-			QJsonObject resObj;
-			resObj["success"] = true;
-			resObj["message"] = "用户创建成功";
-			QHttpServerResponse res (QJsonDocument(resObj).toJson(),
-				"application/json",
-				QHttpServerResponse::StatusCode::Ok);
-			addCorsHeaders(res);
-			return res;
+			QJsonObject res;
+			res["success"] = true;
+			res["message"] = "用户创建成功";
+			return makeJsonResponse(res, QHttpServerResponse::StatusCode::Ok);
 
 		});
 }

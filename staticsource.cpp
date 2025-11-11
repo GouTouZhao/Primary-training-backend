@@ -13,14 +13,12 @@ static void addCorsHeaders(QHttpServerResponse& res)
     corsHeaders.replaceOrAppend(QHttpHeaders::WellKnownHeader::AccessControlAllowMethods, "GET, POST, OPTIONS");
     corsHeaders.replaceOrAppend(QHttpHeaders::WellKnownHeader::AccessControlAllowHeaders, "Content-Type, Authorization");
     res.setHeaders(corsHeaders);
-    qDebug() << "[CORS] Headers added (Qt >= 6.10)";
 #else
     // Qt 6.4 等旧版本
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     res.setHeader("Vary", "Origin");
-    qDebug() << "[CORS] Headers added (legacy)";
 #endif
 }
 
@@ -28,7 +26,7 @@ static QHttpServerResponse makeJsonResponse(const QJsonObject& obj,
     QHttpServerResponse::StatusCode code)
 {
     QByteArray payload = QJsonDocument(obj).toJson(QJsonDocument::Compact);
-    QHttpServerResponse res(payload, "application/json", code);
+    QHttpServerResponse res("application/json", payload , code);
 
     // 添加 CORS 头
     addCorsHeaders(res);
