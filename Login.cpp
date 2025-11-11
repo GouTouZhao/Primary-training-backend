@@ -24,6 +24,7 @@ void UserRegister::setupRoute(QHttpServer& server) {
 				qDebug() << "[POST] JSON Parse error:" << parseError.errorString();
 				return res;
 			}
+			qDebug() << "pass Json格式检测";
 			QJsonObject obj = doc.object();
 
 
@@ -39,8 +40,10 @@ void UserRegister::setupRoute(QHttpServer& server) {
 					"application/json", 
 					QHttpServerResponse::StatusCode::BadRequest);
 				addCorsHeaders(res);
+				qDebug() << "error in 必填项检测";
 				return res;
 			}
+			qDebug() << "pass 必填项";
 			if (username.length() > 30) {
 				QJsonObject resObj;
 				resObj["success"] = false;
