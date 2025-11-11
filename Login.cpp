@@ -21,6 +21,7 @@ void UserRegister::setupRoute(QHttpServer& server) {
 					"application/json", 
 					QHttpServerResponse::StatusCode::BadRequest);
 				addCorsHeaders(res);
+				qDebug() << "[POST] JSON Parse error:" << parseError.errorString();
 				return res;
 			}
 			QJsonObject obj = doc.object();

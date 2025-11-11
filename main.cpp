@@ -34,23 +34,14 @@ int main(int argc, char* argv[])
 
     UserRegister::setupRoute(server);
 
-
-
-
-
-    /*server.addAfterRequestHandler(&server, [](const QHttpServerRequest&, QHttpServerResponse& res) {
-        addCorsHeaders(res);
-        });*/
-
-    server.route(".*", QHttpServerRequest::Method::Options, []() {
+    server.route(".*", QHttpServerRequest::Method::Options, [](const QHttpServerRequest& req) {
         qDebug() << "请求进入 请求头函数 ";
+        auto headers = req.headers();
         QHttpServerResponse res(QHttpServerResponse::StatusCode::Ok);
         addCorsHeaders(res);
         return res;
         });
 
-    
-    
 
     qInfo() << "运行在端口：" << tcpServer.serverPort();
 

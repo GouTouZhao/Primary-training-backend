@@ -9,10 +9,12 @@ static void addCorsHeaders(QHttpServerResponse& res)
     corsHeaders.replaceOrAppend(QHttpHeaders::WellKnownHeader::AccessControlAllowMethods, "GET, POST, OPTIONS");
     corsHeaders.replaceOrAppend(QHttpHeaders::WellKnownHeader::AccessControlAllowHeaders, "Content-Type, Authorization");
     res.setHeaders(corsHeaders);
+    qDebug() << "[CORS] Headers added.";
 #else
     // Qt 6.4 等旧版本：使用基本字符串接口
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    qDebug() << "[CORS] Headers added (legacy mode).";
 #endif
 }
