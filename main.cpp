@@ -18,16 +18,18 @@ int main(int argc, char* argv[])
     }
 
     QTcpServer tcpServer;
+    QHttpServer server;
+    
     if (!tcpServer.listen(QHostAddress::Any, 8080)) {
         qWarning() << "yes" << tcpServer.errorString();
         return -1;
     }
-
-    QHttpServer server;
-    //接口目录
-
+    server.bind(&tcpServer);
     server.route("/", []() {
-        return "Hello, HttpServer 已运行";
+        qDebug() << "请求进入 / ";
+        QHttpServerResponse res("Hello, HttpServer 已运行");
+        addCorsHeaders(res);
+        return res;
         });
 
     UserRegister::setupRoute(server);
@@ -41,12 +43,14 @@ int main(int argc, char* argv[])
         });*/
 
     server.route(".*", QHttpServerRequest::Method::Options, []() {
+        qDebug() << "请求进入 请求头函数 ";
         QHttpServerResponse res(QHttpServerResponse::StatusCode::Ok);
         addCorsHeaders(res);
         return res;
         });
 
-    server.bind(&tcpServer);
+    
+    
 
     qInfo() << "运行在端口：" << tcpServer.serverPort();
 

@@ -9,6 +9,8 @@ void UserRegister::setupRoute(QHttpServer& server) {
 
 	server.route("/Register", QHttpServerRequest::Method::Post,
 		[](const QHttpServerRequest& request) {
+			qDebug() << "请求进入 /Register ";
+			qDebug() << "Request body: /Register" << request.body();
 			QJsonParseError parseError;
 			QJsonDocument doc = QJsonDocument::fromJson(request.body(),&parseError);
 			if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
@@ -123,7 +125,7 @@ void UserRegister::setupRoute(QHttpServer& server) {
 			QByteArray passwordhash = QCryptographicHash::hash(password.toUtf8(),
 				QCryptographicHash::Sha256).toHex();
 
-			db.prepare("INSERT INTO (email,username,password) VALUES (?,?,?)");
+			db.prepare("INSERT INTO users (email,username,password) VALUES (?,?,?)");
 			db.addBindValue(email);
 			db.addBindValue(username);
 			db.addBindValue(QString::fromUtf8(passwordhash));
