@@ -1,5 +1,4 @@
 #include <QHttpServer>
-#include <QHttpHeaders>
 #include <QHttpServerResponse>
 #include <QJsonDocument>
 #include <QJsonObject>
