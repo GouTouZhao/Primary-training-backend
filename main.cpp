@@ -31,8 +31,10 @@ int main(int argc, char* argv[])
         return res;
         });
 
+    //接口列表
     UserRegister::setupRoute(server);
     UserLogin::setupRoute(server);
+    UserInfo::setupRoute(server);
 
     server.route(".*", QHttpServerRequest::Method::Options, [](const QHttpServerRequest& req) {
         auto headers = req.headers();

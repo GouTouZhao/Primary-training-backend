@@ -29,13 +29,19 @@ bool MysqlInitDB::init() {
 }
 
 QSqlDatabase MysqlInitDB::getMysql() {
-	if (!db.isOpen()) {
-		if (!db.open()) {
-			qWarning() << "数据库重连失败" << db.lastError().text();
-		}
-		else {
-			qDebug() << "数据库重连成功";
-		}
+	if (!db.isOpen()||!db.isValid()) {
+		qDebug() << "数据库重新连接";
+		db.close();
+		init();
+		return db;
+	}
+	
+	QSqlQuery testdb(db);
+	if (!testdb.exec("SELECT 1"))
+	{
+		qDebug() << "数据库重新连接";
+		db.close();
+		init();
 	}
 	return db;
 }

@@ -13,3 +13,8 @@ class UserLogin {
 public:
 	static void setupRoute(QHttpServer& server);
 };
+
+class UserInfo {
+public:
+	static void setupRoute(QHttpServer& server);
+};
