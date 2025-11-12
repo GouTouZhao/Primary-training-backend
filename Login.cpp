@@ -30,7 +30,7 @@ void UserRegister::setupRoute(QHttpServer& server) {
 				res["errors"] = "必填项为空";
 				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
 			}
-			if (username.length() > 30) {
+			if (username.length() > 10) {
 				QJsonObject res;
 				res["success"] = false;
 				res["errors"] = "username 过长（max:30）";
@@ -107,5 +107,78 @@ void UserRegister::setupRoute(QHttpServer& server) {
 			res["message"] = "用户创建成功";
 			return makeJsonResponse(res, QHttpServerResponse::StatusCode::Ok);
 
+		});
+}
+
+void UserLogin::setupRoute(QHttpServer& server) {
+	server.route("/Login", QHttpServerRequest::Method::Post,
+		[](const QHttpServerRequest& request) {
+			QJsonParseError parseError;
+			QJsonDocument doc = QJsonDocument::fromJson(request.body(), &parseError);
+			if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "Json格式非法";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+			QJsonObject obj = doc.object();
+
+			QString email = obj.value("email").toString();
+			QString password = obj.value("password").toString();
+			if (email.isEmpty() || password.isEmpty()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "必填项为空";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (password.length() < 6) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "密码过短（min：6）";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			QSqlDatabase mysql = MysqlInitDB::getMysql();
+			if (!mysql.isOpen()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "数据库连接失败";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
+			}
+
+			QSqlQuery db1(mysql);
+			db1.prepare("SELECT id,username,password_hash FROM users WHERE email = ?");
+			db1.addBindValue(email);
+			if (!db1.exec()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "数据库查询邮箱失败";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
+			}
+			if (!db1.next()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "邮箱未注册";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+			int userid = db1.value("id").toInt();
+			QString username = db1.value("username").toString();
+			QString passwordHash = db1.value("password_hash").toString();
+
+			QByteArray respassword_hash = QCryptographicHash::hash(password.toUtf8(),
+				QCryptographicHash::Sha256).toHex();
+			if (passwordHash != QString(respassword_hash)) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "密码错误";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			QJsonObject res;
+			res["success"] = true;
+			res["message"] = "登录成功";
+			res["userid"] = userid;
+			return makeJsonResponse(res, QHttpServerResponse::StatusCode::Ok);
 		});
 }

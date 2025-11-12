@@ -8,3 +8,8 @@ class UserRegister {
 public:
 	static void setupRoute(QHttpServer &server);
 };
+
+class UserLogin {
+public:
+	static void setupRoute(QHttpServer& server);
+};

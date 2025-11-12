@@ -26,16 +26,15 @@ int main(int argc, char* argv[])
     }
     server.bind(&tcpServer);
     server.route("/", []() {
-        qDebug() << "请求进入 / ";
         QHttpServerResponse res("Hello, HttpServer 已运行");
         addCorsHeaders(res);
         return res;
         });
 
     UserRegister::setupRoute(server);
+    UserLogin::setupRoute(server);
 
     server.route(".*", QHttpServerRequest::Method::Options, [](const QHttpServerRequest& req) {
-        qDebug() << "请求进入 请求头函数 ";
         auto headers = req.headers();
         QHttpServerResponse res(QHttpServerResponse::StatusCode::Ok);
         addCorsHeaders(res);
