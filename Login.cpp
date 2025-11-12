@@ -179,6 +179,8 @@ void UserLogin::setupRoute(QHttpServer& server) {
 			res["success"] = true;
 			res["message"] = "登录成功";
 			res["userid"] = userid;
+			res["email"] = email;
+			res["username"] = username;
 			return makeJsonResponse(res, QHttpServerResponse::StatusCode::Ok);
 		});
 }
