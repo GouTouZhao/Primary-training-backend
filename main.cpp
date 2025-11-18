@@ -8,6 +8,7 @@
 #include"initDB.h"
 #include"Login.h"
 #include"staticsource.cpp"
+#include"ticket.h"
 
 int main(int argc, char* argv[])
 {
@@ -35,6 +36,9 @@ int main(int argc, char* argv[])
     UserRegister::setupRoute(server);
     UserLogin::setupRoute(server);
     UserInfo::setupRoute(server);
+    UserGetTicketsNum::setupRoute(server);
+    RootPushTickets::setupRoute(server);
+    UserGetTickets::setupRoute(server);
 
     server.route(".*", QHttpServerRequest::Method::Options, [](const QHttpServerRequest& req) {
         auto headers = req.headers();
