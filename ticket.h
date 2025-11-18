@@ -19,3 +19,8 @@ class UserGetTickets {
 public:
 	static void setupRoute(QHttpServer& server);
 };
+
+class UserGetTicketDetails {
+public:
+	static void setupRoute(QHttpServer& server);
+};

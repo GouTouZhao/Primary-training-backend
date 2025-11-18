@@ -254,8 +254,8 @@ void UserGetTickets::setupRoute(QHttpServer& server) {
 			int limit = obj.value("limit").toInt();
 			qDebug() << "    request --email:"<<email;
 
-			if (email.isEmpty() || sort.isEmpty() || time.isEmpty() || userid < 0 ||
-				departureairport.isEmpty() || arrivalairport.isEmpty()||offset<0||limit<0) {
+			if (email.isEmpty() || sort.isEmpty() || time.isEmpty() || userid <= 0 ||
+				departureairport.isEmpty() || arrivalairport.isEmpty() || offset <= 0 || limit <= 0) {
 				QJsonObject res;
 				res["success"] = false;
 				res["errors"] = "请求缺少必须项";
@@ -357,7 +357,7 @@ void UserGetTickets::setupRoute(QHttpServer& server) {
 			QJsonArray resdata;
 			while (db2.next()) {
 				QJsonObject ticket;
-				ticket["id"] = db2.value("id").toInt();
+				ticket["ticketid"] = db2.value("id").toInt();
 				ticket["flightnumber"] = db2.value("flight_number").toString();
 				ticket["departuretime"] = db2.value("departure_time").toDateTime().toString();
 				ticket["arrivaltime"] = db2.value("arrival_time").toDateTime().toString();
@@ -369,6 +369,108 @@ void UserGetTickets::setupRoute(QHttpServer& server) {
 			res["success"] = true;
 			res["message"] = "请求成功";
 			res["date"] = resdata;
+			return makeJsonResponse(res,
+				QHttpServerResponse::StatusCode::Ok);
+		});
+}
+
+void UserGetTicketDetails::setupRoute(QHttpServer& server) {
+	server.route("/GetTicketDetails", QHttpServerRequest::Method::Post,
+		[](const QHttpServerRequest& request) {
+			qDebug() << "post to /GetTicketDetails";
+			QJsonParseError parseError;
+			QJsonDocument doc = QJsonDocument::fromJson(request.body(), &parseError);
+			if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "Json格式非法";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+			QJsonObject obj = doc.object();
+
+			QString email = obj.value("email").toString();
+			int userid = obj.value("id").toInt();
+			int ticketid = obj.value("ticketid").toInt();
+			qDebug() << "    request --email:" << email;
+
+			if (email.isEmpty() || userid <= 0 || ticketid <= 0) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "必填项为空";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			QSqlDatabase mysql = MysqlInitDB::getMysql();
+			if (!mysql.isOpen()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "数据库连接失败";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::InternalServerError);
+			}
+
+			QSqlQuery db1(mysql);
+			db1.prepare("SELECT id FROM users WHERE email = ?");
+			db1.addBindValue(email);
+			if (!db1.exec()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "数据库查询用户失败";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::InternalServerError);
+			}
+			if (!db1.next()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "Email未注册";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+			int interid = db1.value("id").toInt();
+			if (userid != interid) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "ID不匹配Email";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			QSqlQuery db2(mysql);
+			db2.prepare("SELECT * FROM flights WHERE id = ?");
+			db2.addBindValue(ticketid);
+			if (!db2.exec()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "数据库查询票务失败";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::InternalServerError);
+			}
+			if (!db2.next()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "查询的票不存在";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+			QString departureairport = db2.value("departure_airport").toString();
+			QString arrivalairport = db2.value("arrival_airport").toString();
+			QString flightnumber = db2.value("flight_number").toString();
+			QString departuretime = db2.value("departure_time").toDateTime().toString();
+			QString arrivaltime = db2.value("arrival_time").toDateTime().toString();
+			int price = db2.value("price").toInt();
+
+			QJsonObject res;
+			res["success"] = true;
+			res["errors"] = "查询成功";
+			res["id"] = ticketid;
+			res["departureairport"] = departureairport;
+			res["arrivalairport"] = arrivalairport;
+			res["flightnumber"] = flightnumber;
+			res["departuretime"] = departuretime;
+			res["arrivaltime"] = arrivaltime;
+			res["price"] = price;
 			return makeJsonResponse(res,
 				QHttpServerResponse::StatusCode::Ok);
 		});

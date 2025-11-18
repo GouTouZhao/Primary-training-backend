@@ -39,6 +39,7 @@ int main(int argc, char* argv[])
     UserGetTicketsNum::setupRoute(server);
     RootPushTickets::setupRoute(server);
     UserGetTickets::setupRoute(server);
+    UserGetTicketDetails::setupRoute(server);
 
     server.route(".*", QHttpServerRequest::Method::Options, [](const QHttpServerRequest& req) {
         auto headers = req.headers();
