@@ -24,3 +24,13 @@ class UserGetTicketDetails {
 public:
 	static void setupRoute(QHttpServer& server);
 };
+
+class UserGetRemainingTicketsNum {
+public:
+	static void setupRoute(QHttpServer& server);
+};
+
+class UserBuyTicket {
+public:
+	static void setupRoute(QHttpServer& server);
+};

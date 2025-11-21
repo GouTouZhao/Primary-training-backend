@@ -368,7 +368,7 @@ void UserGetTickets::setupRoute(QHttpServer& server) {
 			QJsonObject res;
 			res["success"] = true;
 			res["message"] = "请求成功";
-			res["date"] = resdata;
+			res["data"] = resdata;
 			return makeJsonResponse(res,
 				QHttpServerResponse::StatusCode::Ok);
 		});
@@ -464,13 +464,242 @@ void UserGetTicketDetails::setupRoute(QHttpServer& server) {
 			QJsonObject res;
 			res["success"] = true;
 			res["errors"] = "查询成功";
-			res["id"] = ticketid;
+			res["ticketid"] = ticketid;
 			res["departureairport"] = departureairport;
 			res["arrivalairport"] = arrivalairport;
 			res["flightnumber"] = flightnumber;
 			res["departuretime"] = departuretime;
 			res["arrivaltime"] = arrivaltime;
 			res["price"] = price;
+			return makeJsonResponse(res,
+				QHttpServerResponse::StatusCode::Ok);
+		});
+}
+
+void UserGetRemainingTicketsNum::setupRoute(QHttpServer& server) {
+	server.route("/GetRemainingTicketsNum", QHttpServerRequest::Method::Post,
+		[](const QHttpServerRequest& request) {
+			qDebug() << "post to /GetRemainingTicketsNum";
+			QJsonParseError parseError;
+			QJsonDocument doc = QJsonDocument::fromJson(request.body(), &parseError);
+			if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "Json格式非法";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+			QJsonObject obj = doc.object();
+
+			QString email = obj.value("email").toString();
+			int userid = obj.value("id").toInt();
+			int ticketid = obj.value("ticketid").toInt();
+			qDebug() << "    request --email:" << email;
+
+			if (email.isEmpty() || userid <= 0 || ticketid <= 0) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "必填项为空";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			QSqlDatabase mysql = MysqlInitDB::getMysql();
+			if (!mysql.isOpen()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "数据库连接失败";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::InternalServerError);
+			}
+
+			QSqlQuery db1(mysql);
+			db1.prepare("SELECT id FROM users WHERE email = ?");
+			db1.addBindValue(email);
+			if (!db1.exec()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "数据库查询用户失败";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::InternalServerError);
+			}
+			if (!db1.next()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "Email未注册";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+			int interid = db1.value("id").toInt();
+			if (userid != interid) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "ID不匹配Email";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			QSqlQuery db2(mysql);
+			db2.prepare("SELECT COUNT(*) FROM flights WHERE id = ?");
+			db2.addBindValue(ticketid);
+			if (!db2.exec() || !db2.next()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "查询票务失败";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::InternalServerError);
+			}
+			if (db2.value(0).toInt() == 0) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "未查到此航班";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			QSqlQuery db3(mysql);
+			db3.prepare("SELECT COUNT(*) FROM tickets WHERE ticket_id = ?");
+			db3.addBindValue(ticketid);
+			if (!db3.exec() || !db3.next()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "查询票数失败";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::InternalServerError);
+			}
+			int number = db3.value(0).toInt();
+			if (number > 4) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "票数有误，请联系管理员";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::InternalServerError);
+			}
+
+			QJsonObject res;
+			res["success"] = true;
+			res["message"] = "查票成功";
+			res["remainingnumber"] = (4 - number);
+			return makeJsonResponse(res,
+				QHttpServerResponse::StatusCode::Ok);
+		});
+}
+
+void UserBuyTicket::setupRoute(QHttpServer& server) {
+	server.route("/BuyTicket", QHttpServerRequest::Method::Post,
+		[](const QHttpServerRequest& request) {
+			qDebug() << "post to /BuyTicket";
+			QJsonParseError parseError;
+			QJsonDocument doc = QJsonDocument::fromJson(request.body(), &parseError);
+			if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "Json格式非法";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+			QJsonObject obj = doc.object();
+
+			QString email = obj.value("email").toString();
+			int userid = obj.value("id").toInt();
+			int ticketid = obj.value("ticketid").toInt();
+			qDebug() << "    request --email:" << email;
+
+			if (email.isEmpty() || userid <= 0 || ticketid <= 0) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "必填项为空";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			QSqlDatabase mysql = MysqlInitDB::getMysql();
+			if (!mysql.isOpen()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "数据库连接失败";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::InternalServerError);
+			}
+
+			QSqlQuery db1(mysql);
+			db1.prepare("SELECT id FROM users WHERE email = ?");
+			db1.addBindValue(email);
+			if (!db1.exec()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "数据库查询用户失败";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::InternalServerError);
+			}
+			if (!db1.next()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "Email未注册";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+			int interid = db1.value("id").toInt();
+			if (userid != interid) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "ID不匹配Email";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			QSqlQuery db2(mysql);
+			db2.prepare("SELECT COUNT(*) FROM flights WHERE id = ?");
+			db2.addBindValue(ticketid);
+			if (!db2.exec() || !db2.next()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "查询票务失败";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::InternalServerError);
+			}
+			if (db2.value(0).toInt() == 0) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "未查到此航班";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			QSqlQuery db3(mysql);
+			db3.prepare("SELECT COUNT(*) FROM tickets WHERE ticket_id = ?");
+			db3.addBindValue(ticketid);
+			if (!db3.exec() || !db3.next()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "查询票数失败";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::InternalServerError);
+			}
+			int number = db3.value(0).toInt();
+			if (number >= 4) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "目前剩余票数为0";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			QSqlQuery db4(mysql);
+			db4.prepare("INSERT INTO tickets (ticket_id,user_id) VALUES (?,?)");
+			db4.addBindValue(ticketid);
+			db4.addBindValue(userid);
+			if (!db4.exec()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "数据库插入票务失败";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::InternalServerError);
+			}
+
+			QJsonObject res;
+			res["success"] = true;
+			res["message"] = "购票成功";
 			return makeJsonResponse(res,
 				QHttpServerResponse::StatusCode::Ok);
 		});
