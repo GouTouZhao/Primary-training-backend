@@ -68,14 +68,6 @@ void UserGetTicketsNum::setupRoute(QHttpServer& server) {
 					QHttpServerResponse::StatusCode::BadRequest);
 			}
 
-			if (email.isEmpty() || departureairport.isEmpty() ||
-				arrivalairport.isEmpty() || time.isEmpty()||userid<=0) {
-				QJsonObject res;
-				res["success"] = false;
-				res["errors"] = "缺少必须数据";
-				return makeJsonResponse(res,
-					QHttpServerResponse::StatusCode::BadRequest);
-			}
 
 			if (departureairport.length() > 6||arrivalairport.length() > 6) {
 				QJsonObject res;
@@ -131,7 +123,7 @@ void UserGetTicketsNum::setupRoute(QHttpServer& server) {
 				WHERE departure_airport = ?
 				AND arrival_airport = ?
 				AND departure_time >= ?
-				AND arrival_time < ?)");
+				AND departure_time < ?)");
 			db2.addBindValue(departureairport);
 			db2.addBindValue(arrivalairport);
 			db2.addBindValue(starttime);
@@ -143,10 +135,15 @@ void UserGetTicketsNum::setupRoute(QHttpServer& server) {
 				return makeJsonResponse(res,
 					QHttpServerResponse::StatusCode::InternalServerError);
 			}
+			int count = 0;
+			if (db2.next()) {     // ← 必须加！
+				count = db2.value(0).toInt();
+			}
+
 			QJsonObject res;
 			res["success"] = true;
 			res["message"] = "查询数量成功";
-			res["ticketsnum"] = db2.value(0).toInt();
+			res["ticketsnum"] = count;
 			return makeJsonResponse(res,
 				QHttpServerResponse::StatusCode::Ok);
 		});
