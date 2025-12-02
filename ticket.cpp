@@ -28,6 +28,46 @@ void UserGetTicketsNum::setupRoute(QHttpServer& server) {
 			int userid = obj.value("id").toInt();
 			qDebug() << "    request --email:" << email;
 
+			if (email.isEmpty()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "缺少email";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (departureairport.isEmpty()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "缺少depare";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (arrivalairport.isEmpty()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "缺少arr";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (time.isEmpty()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "缺少time";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (userid <= 0) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "userid可能为零";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
 			if (email.isEmpty() || departureairport.isEmpty() ||
 				arrivalairport.isEmpty() || time.isEmpty()||userid<=0) {
 				QJsonObject res;
