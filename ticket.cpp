@@ -291,14 +291,70 @@ void UserGetTickets::setupRoute(QHttpServer& server) {
 			int limit = obj.value("limit").toInt();
 			qDebug() << "    request --email:"<<email;
 
-			if (email.isEmpty() || sort.isEmpty() || time.isEmpty() || userid <= 0 ||
-				departureairport.isEmpty() || arrivalairport.isEmpty() || offset <= 0 || limit <= 0) {
+			if (email.isEmpty()) {
 				QJsonObject res;
 				res["success"] = false;
-				res["errors"] = "请求缺少必须项";
+				res["errors"] = "请求缺少email";
 				return makeJsonResponse(res,
 					QHttpServerResponse::StatusCode::BadRequest);
 			}
+
+			if (sort.isEmpty()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "请求缺少sort";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (time.isEmpty()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "请求缺少sort";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (userid <= 0) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "请求缺少userid";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (departureairport.isEmpty()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "请求缺少depa";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (arrivalairport.isEmpty()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "请求缺少arrport";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (offset < 0) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "请求缺少offset";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (limit <= 0) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "请求缺少limit";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
 
 			QSqlDatabase mysql = MysqlInitDB::getMysql();
 			if (!mysql.isOpen()) {
@@ -431,10 +487,27 @@ void UserGetTicketDetails::setupRoute(QHttpServer& server) {
 			int ticketid = obj.value("ticketid").toInt();
 			qDebug() << "    request --email:" << email;
 
-			if (email.isEmpty() || userid <= 0 || ticketid <= 0) {
+
+			if (email.isEmpty()) {
 				QJsonObject res;
 				res["success"] = false;
-				res["errors"] = "必填项为空";
+				res["errors"] = "请求缺少email";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (userid <= 0) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "请求缺少id";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (ticketid <= 0) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "请求缺少ticketid";
 				return makeJsonResponse(res,
 					QHttpServerResponse::StatusCode::BadRequest);
 			}
@@ -533,10 +606,26 @@ void UserGetRemainingTicketsNum::setupRoute(QHttpServer& server) {
 			int ticketid = obj.value("ticketid").toInt();
 			qDebug() << "    request --email:" << email;
 
-			if (email.isEmpty() || userid <= 0 || ticketid <= 0) {
+			if (email.isEmpty()) {
 				QJsonObject res;
 				res["success"] = false;
-				res["errors"] = "必填项为空";
+				res["errors"] = "请求缺少email";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (userid <= 0) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "请求缺少id";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (ticketid <= 0) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "请求缺少ticketid";
 				return makeJsonResponse(res,
 					QHttpServerResponse::StatusCode::BadRequest);
 			}
@@ -642,10 +731,26 @@ void UserBuyTicket::setupRoute(QHttpServer& server) {
 			int ticketid = obj.value("ticketid").toInt();
 			qDebug() << "    request --email:" << email;
 
-			if (email.isEmpty() || userid <= 0 || ticketid <= 0) {
+			if (email.isEmpty()) {
 				QJsonObject res;
 				res["success"] = false;
-				res["errors"] = "必填项为空";
+				res["errors"] = "请求缺少email";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (userid <= 0) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "请求缺少id";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (ticketid <= 0) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "请求缺少ticketid";
 				return makeJsonResponse(res,
 					QHttpServerResponse::StatusCode::BadRequest);
 			}
