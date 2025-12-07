@@ -42,6 +42,9 @@ int main(int argc, char* argv[])
     UserGetTicketDetails::setupRoute(server);
     UserGetRemainingTicketsNum::setupRoute(server);
     UserBuyTicket::setupRoute(server);
+    UserGetOwnTickets::setupRoute(server);
+    UserGetOwnTicketsNum::setupRoute(server);
+    UserRefundTicket::setupRoute(server);
 
     server.route(".*", QHttpServerRequest::Method::Options, [](const QHttpServerRequest& req) {
         auto headers = req.headers();

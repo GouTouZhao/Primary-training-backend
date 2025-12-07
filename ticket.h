@@ -34,3 +34,18 @@ class UserBuyTicket {
 public:
 	static void setupRoute(QHttpServer& server);
 };
+
+class UserGetOwnTicketsNum {
+public:
+	static void setupRoute(QHttpServer& server);
+};
+
+class UserGetOwnTickets {
+public:
+	static void setupRoute(QHttpServer& server);
+};
+
+class UserRefundTicket {
+public:
+	static void setupRoute(QHttpServer& server);
+};

@@ -1,0 +1,19 @@
+{
+    "editor.inlineCompletionsAccessibilityVerbose": true,
+    "diffEditor.experimental.useTrueInlineView": true,
+    "editor.quickSuggestions": {
+        "comments": "on",
+        "strings": "on"
+    },
+    "editor.allowVariableFontsInAccessibilityMode": true,
+    "editor.tabCompletion": "on",
+    "editor.wordBasedSuggestions": "matchingDocuments",
+    "editor.inlineSuggest.experimental.showOnSuggestConflict": "always",
+    "javascript.suggest.completeFunctionCalls": true,
+    "editor.acceptSuggestionOnEnter": "off",
+    "editor.inlineSuggest.showToolbar": "always",
+    "editor.inlineSuggest.suppressSuggestions": true,
+    "editor.suggestOnTriggerCharacters": false,
+    "diffEditor.useInlineViewWhenSpaceIsLimited": false,
+    "editor.inlineSuggest.edits.allowCodeShifting": "horizontal"
+}
