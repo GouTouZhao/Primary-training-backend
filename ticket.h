@@ -49,3 +49,8 @@ class UserRefundTicket {
 public:
 	static void setupRoute(QHttpServer& server);
 };
+
+class UserGetOrderDetails{
+	public:
+		static void setupRoute(QHttpServer& server);
+};

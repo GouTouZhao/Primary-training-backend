@@ -2,18 +2,26 @@
     "editor.inlineCompletionsAccessibilityVerbose": true,
     "diffEditor.experimental.useTrueInlineView": true,
     "editor.quickSuggestions": {
+        "other": "on",
         "comments": "on",
         "strings": "on"
     },
     "editor.allowVariableFontsInAccessibilityMode": true,
     "editor.tabCompletion": "on",
-    "editor.wordBasedSuggestions": "matchingDocuments",
+    "editor.wordBasedSuggestions": "allDocuments",
     "editor.inlineSuggest.experimental.showOnSuggestConflict": "always",
     "javascript.suggest.completeFunctionCalls": true,
-    "editor.acceptSuggestionOnEnter": "off",
-    "editor.inlineSuggest.showToolbar": "always",
+    "editor.acceptSuggestionOnEnter": "on",
+    "editor.inlineSuggest.showToolbar": "onHover",
     "editor.inlineSuggest.suppressSuggestions": true,
-    "editor.suggestOnTriggerCharacters": false,
+    "editor.suggestOnTriggerCharacters": true,
     "diffEditor.useInlineViewWhenSpaceIsLimited": false,
-    "editor.inlineSuggest.edits.allowCodeShifting": "horizontal"
+    "editor.inlineSuggest.edits.allowCodeShifting": "always",
+    "editor.fontSize": 16,
+    "editor.suggest.insertMode": "replace",
+    "emmet.showSuggestionsAsSnippets": true,
+    "editor.suggestSelection": "recentlyUsed",
+    "editor.tabAction": "suggest",
+    "editor.formatOnPaste": true,
+    "editor.snippetSuggestions": "inline"
 }
