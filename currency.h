@@ -4,27 +4,17 @@
 #include <QHttpServerResponse>
 #include "initDB.h"
 
-class UserRegister {
-public:
-	static void setupRoute(QHttpServer &server);
-};
-
-class UserLogin {
+class GetCurrency {
 public:
 	static void setupRoute(QHttpServer& server);
 };
 
-class UserInfo {
+class AddCurrency {
 public:
 	static void setupRoute(QHttpServer& server);
 };
 
-class UpdateProfileColor {
-public:
-	static void setupRoute(QHttpServer& server);
-};
-
-class UpdateUsername {
+class SubtractCurrency {
 public:
 	static void setupRoute(QHttpServer& server);
 };

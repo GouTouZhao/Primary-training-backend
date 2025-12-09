@@ -4,27 +4,22 @@
 #include <QHttpServerResponse>
 #include "initDB.h"
 
-class UserRegister {
-public:
-	static void setupRoute(QHttpServer &server);
-};
-
-class UserLogin {
+class AddStar {
 public:
 	static void setupRoute(QHttpServer& server);
 };
 
-class UserInfo {
+class RemoveStar {
 public:
 	static void setupRoute(QHttpServer& server);
 };
 
-class UpdateProfileColor {
+class GetStarCount {
 public:
 	static void setupRoute(QHttpServer& server);
 };
 
-class UpdateUsername {
+class GetStarTickets {
 public:
 	static void setupRoute(QHttpServer& server);
 };

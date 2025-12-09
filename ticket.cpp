@@ -854,6 +854,38 @@ void UserBuyTicket::setupRoute(QHttpServer& server) {
 					QHttpServerResponse::StatusCode::BadRequest);
 			}
 
+			QSqlQuery db_price(mysql);
+			db_price.prepare("SELECT price FROM flights WHERE id = ?");
+			db_price.addBindValue(ticketid);
+			if (!db_price.exec() || !db_price.next()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "查询票价失败";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::InternalServerError);
+			}
+			uint ticket_price = db_price.value("price").toUInt();
+
+			QSqlQuery db_currency(mysql);
+			db_currency.prepare("SELECT currency FROM users WHERE email = ?");
+			db_currency.addBindValue(email);
+			if (!db_currency.exec() || !db_currency.next()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "查询用户货币失败";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::InternalServerError);
+			}
+			uint user_currency = db_currency.value("currency").toUInt();
+
+			if (user_currency < ticket_price) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "余额不足";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::BadRequest);
+			}
+
 			QSqlQuery db4(mysql);
 			db4.prepare("INSERT INTO tickets (ticket_id,user_id,is_refund,passenger_name,passenger_phone,passenger_id_number) VALUES (?,?,0,?,?,?)");
 			db4.addBindValue(ticketid);
@@ -865,6 +897,21 @@ void UserBuyTicket::setupRoute(QHttpServer& server) {
 				QJsonObject res;
 				res["success"] = false;
 				res["errors"] = "数据库插入票务失败";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::InternalServerError);
+			}
+
+			QSqlQuery db_update_currency(mysql);
+			db_update_currency.prepare("UPDATE users SET currency = currency - ? WHERE email = ?");
+			db_update_currency.addBindValue(ticket_price);
+			db_update_currency.addBindValue(email);
+			if (!db_update_currency.exec()) {
+				QSqlError err = db_update_currency.lastError();
+				qDebug() << db_update_currency.lastQuery() << "\n" << err.text() << "\n" << err.driverText()
+					<< "\n" << err.databaseText() << "\n" << err.isValid();
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "数据库更新货币失败";
 				return makeJsonResponse(res,
 					QHttpServerResponse::StatusCode::InternalServerError);
 			}
@@ -1185,7 +1232,7 @@ void UserRefundTicket::setupRoute(QHttpServer& server) {
 			}
 
 			QSqlQuery db2(mysql);
-			db2.prepare("SELECT user_id, is_refund FROM tickets WHERE id = ?");
+			db2.prepare("SELECT user_id, is_refund, ticket_id FROM tickets WHERE id = ?");
 			db2.addBindValue(orderid);
 			if (!db2.exec()) {
 				QJsonObject res;
@@ -1203,6 +1250,7 @@ void UserRefundTicket::setupRoute(QHttpServer& server) {
 			}
 			int orderUserId = db2.value("user_id").toInt();
 			bool isRefund = db2.value("is_refund").toBool();
+			int ticketId = db2.value("ticket_id").toInt();
 			if (orderUserId != userid) {
 				QJsonObject res;
 				res["success"] = false;
@@ -1218,6 +1266,18 @@ void UserRefundTicket::setupRoute(QHttpServer& server) {
 					QHttpServerResponse::StatusCode::BadRequest);
 			}
 
+			QSqlQuery db_price(mysql);
+			db_price.prepare("SELECT price FROM flights WHERE id = ?");
+			db_price.addBindValue(ticketId);
+			if (!db_price.exec() || !db_price.next()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "查询票价失败";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::InternalServerError);
+			}
+			uint ticket_price = db_price.value("price").toUInt();
+
 			QSqlQuery db3(mysql);
 			db3.prepare("UPDATE tickets SET is_refund = true WHERE id = ?");
 			db3.addBindValue(orderid);
@@ -1225,6 +1285,21 @@ void UserRefundTicket::setupRoute(QHttpServer& server) {
 				QJsonObject res;
 				res["success"] = false;
 				res["errors"] = "退票失败";
+				return makeJsonResponse(res,
+					QHttpServerResponse::StatusCode::InternalServerError);
+			}
+
+			QSqlQuery db_update_currency(mysql);
+			db_update_currency.prepare("UPDATE users SET currency = currency + ? WHERE email = ?");
+			db_update_currency.addBindValue(ticket_price);
+			db_update_currency.addBindValue(email);
+			if (!db_update_currency.exec()) {
+				QSqlError err = db_update_currency.lastError();
+				qDebug() << db_update_currency.lastQuery() << "\n" << err.text() << "\n" << err.driverText()
+					<< "\n" << err.databaseText() << "\n" << err.isValid();
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "数据库更新货币失败";
 				return makeJsonResponse(res,
 					QHttpServerResponse::StatusCode::InternalServerError);
 			}
@@ -1383,5 +1458,5 @@ void UserGetOrderDetails::setupRoute(QHttpServer& server){
 			res["passengeridnumber"] = passengerIDNumber;
 			return makeJsonResponse(res,
 				QHttpServerResponse::StatusCode::Ok);
-		})
+		});
 }

@@ -7,6 +7,8 @@
 #include <functional>
 #include"initDB.h"
 #include"Login.h"
+#include"currency.h"
+#include"star.h"
 #include"staticsource.cpp"
 #include"ticket.h"
 
@@ -36,6 +38,15 @@ int main(int argc, char* argv[])
     UserRegister::setupRoute(server);
     UserLogin::setupRoute(server);
     UserInfo::setupRoute(server);
+    UpdateProfileColor::setupRoute(server);
+    UpdateUsername::setupRoute(server);
+    GetCurrency::setupRoute(server);
+    AddCurrency::setupRoute(server);
+    SubtractCurrency::setupRoute(server);
+    AddStar::setupRoute(server);
+    RemoveStar::setupRoute(server);
+    GetStarCount::setupRoute(server);
+    GetStarTickets::setupRoute(server);
     UserGetTicketsNum::setupRoute(server);
     RootPushTickets::setupRoute(server);
     UserGetTickets::setupRoute(server);
@@ -46,7 +57,7 @@ int main(int argc, char* argv[])
     UserGetOwnTicketsNum::setupRoute(server);
     UserRefundTicket::setupRoute(server);
     UserGetOrderDetails::setupRoute(server);
-
+    
     server.route(".*", QHttpServerRequest::Method::Options, [](const QHttpServerRequest& req) {
         auto headers = req.headers();
         QHttpServerResponse res(QHttpServerResponse::StatusCode::Ok);
