@@ -75,7 +75,7 @@ void GetCurrency::setupRoute(QHttpServer& server) {
 			}
 
 			QSqlQuery db2(mysql);
-			db2.prepare("SELECT currency FROM users WHERE email = ?");
+			db2.prepare("SELECT COALESCE(currency, 0) as currency FROM users WHERE email = ?");
 			db2.addBindValue(email);
 			if (!db2.exec()) {
 				QJsonObject res;
@@ -89,7 +89,7 @@ void GetCurrency::setupRoute(QHttpServer& server) {
 				res["errors"] = "用户不存在";
 				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
 			}
-			uint currency = db2.value("currency").toUInt();
+			int currency = db2.value("currency").toInt();
 
 			QJsonObject res;
 			res["success"] = true;
@@ -115,7 +115,7 @@ void AddCurrency::setupRoute(QHttpServer& server) {
 
 			QString email = obj.value("email").toString();
 			int userid = obj.value("id").toInt();
-			uint amount = obj.value("amount").toInt();
+			int amount = obj.value("amount").toInt();
 			qDebug() << "    request --email:" << email;
 
 			if (email.isEmpty()) {
@@ -178,7 +178,8 @@ void AddCurrency::setupRoute(QHttpServer& server) {
 			}
 
 			QSqlQuery query(mysql);
-			query.prepare("UPDATE users SET currency = currency + ? WHERE email = ?");
+			// 使用 COALESCE 处理 NULL 值，如果 currency 为 NULL 则当作 0 处理
+			query.prepare("UPDATE users SET currency = COALESCE(currency, 0) + ? WHERE email = ?");
 			query.addBindValue(amount);
 			query.addBindValue(email);
 			if (!query.exec()) {
@@ -214,7 +215,7 @@ void SubtractCurrency::setupRoute(QHttpServer& server) {
 
 			QString email = obj.value("email").toString();
 			int userid = obj.value("id").toInt();
-			uint amount = obj.value("amount").toInt();
+			int amount = obj.value("amount").toInt();
 			qDebug() << "    request --email:" << email;
 
 			if (email.isEmpty()) {
@@ -277,7 +278,7 @@ void SubtractCurrency::setupRoute(QHttpServer& server) {
 			}
 
 			QSqlQuery db2(mysql);
-			db2.prepare("SELECT currency FROM users WHERE email = ?");
+			db2.prepare("SELECT COALESCE(currency, 0) as currency FROM users WHERE email = ?");
 			db2.addBindValue(email);
 			if (!db2.exec()) {
 				QJsonObject res;
@@ -291,7 +292,7 @@ void SubtractCurrency::setupRoute(QHttpServer& server) {
 				res["errors"] = "用户不存在";
 				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
 			}
-			uint current_currency = db2.value("currency").toUInt();
+			int current_currency = db2.value("currency").toInt();
 
 			if (current_currency < amount) {
 				QJsonObject res;
@@ -301,7 +302,8 @@ void SubtractCurrency::setupRoute(QHttpServer& server) {
 			}
 
 			QSqlQuery query(mysql);
-			query.prepare("UPDATE users SET currency = currency - ? WHERE email = ?");
+			// 使用 COALESCE 处理 NULL 值，确保扣除操作正确
+			query.prepare("UPDATE users SET currency = COALESCE(currency, 0) - ? WHERE email = ?");
 			query.addBindValue(amount);
 			query.addBindValue(email);
 			if (!query.exec()) {
