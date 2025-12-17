@@ -54,3 +54,13 @@ class UserGetOrderDetails{
 	public:
 		static void setupRoute(QHttpServer& server);
 };
+
+class AdminAddTicket {
+public:
+	static void setupRoute(QHttpServer& server);
+};
+
+class AdminDeleteFlight {
+public:
+	static void setupRoute(QHttpServer& server);
+};

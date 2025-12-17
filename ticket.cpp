@@ -1460,3 +1460,283 @@ void UserGetOrderDetails::setupRoute(QHttpServer& server){
 				QHttpServerResponse::StatusCode::Ok);
 		});
 }
+
+void AdminAddTicket::setupRoute(QHttpServer& server) {
+	server.route("/AdminAddTicket", QHttpServerRequest::Method::Post,
+		[](const QHttpServerRequest& request) {
+			qDebug() << "post to /AdminAddTicket";
+			QJsonParseError parseError;
+			QJsonDocument doc = QJsonDocument::fromJson(request.body(), &parseError);
+			if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "Json格式非法";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+			QJsonObject obj = doc.object();
+
+			QString departureTime = obj.value("departuretime").toString();
+			QString arrivalTime = obj.value("arrivaltime").toString();
+			QString departureAirport = obj.value("departureairport").toString();
+			QString arrivalAirport = obj.value("arrivalairport").toString();
+			int price = obj.value("price").toInt();
+			QString flightNumber = obj.value("flightnumber").toString();
+
+			qDebug() << "    request --AdminAddTicket";
+
+			// 验证必需参数
+			if (departureTime.isEmpty()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "缺少起飞时间";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (arrivalTime.isEmpty()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "缺少到达时间";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (departureAirport.isEmpty()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "缺少起飞机场";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (arrivalAirport.isEmpty()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "缺少到达机场";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (flightNumber.isEmpty()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "缺少飞机编号";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (price <= 0) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "票价必须大于0";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			// 验证机场是否在六个固定机场中
+			QStringList validAirports = {"北京", "广州", "上海", "成都", "武汉", "香港"};
+			if (!validAirports.contains(departureAirport)) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "起飞机场不在可选范围内";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (!validAirports.contains(arrivalAirport)) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "到达机场不在可选范围内";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (departureAirport == arrivalAirport) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "起飞机场和到达机场不能相同";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			// 验证时间格式 "2025-12-20-23-50"
+			QDateTime departureDateTime = QDateTime::fromString(departureTime, "yyyy-MM-dd-HH-mm");
+			if (!departureDateTime.isValid()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "起飞时间格式不正确，应为：2025-12-20-23-50";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			QDateTime arrivalDateTime = QDateTime::fromString(arrivalTime, "yyyy-MM-dd-HH-mm");
+			if (!arrivalDateTime.isValid()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "到达时间格式不正确，应为：2025-12-20-23-50";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (arrivalDateTime <= departureDateTime) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "到达时间必须晚于起飞时间";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			// 连接数据库
+			QSqlDatabase mysql = MysqlInitDB::getMysql();
+			if (!mysql.isOpen()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "数据库连接失败";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
+			}
+
+			// 插入航班数据
+			QString dbDepartureTime = departureDateTime.toString("yyyy-MM-dd HH:mm:ss");
+			QString dbArrivalTime = arrivalDateTime.toString("yyyy-MM-dd HH:mm:ss");
+
+			QSqlQuery db(mysql);
+			db.prepare("INSERT INTO flights (flight_number, departure_airport, arrival_airport, departure_time, arrival_time, price) VALUES (?,?,?,?,?,?)");
+			db.addBindValue(flightNumber);
+			db.addBindValue(departureAirport);
+			db.addBindValue(arrivalAirport);
+			db.addBindValue(dbDepartureTime);
+			db.addBindValue(dbArrivalTime);
+			db.addBindValue(price);
+
+			if (!db.exec()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "数据库插入航班失败: " + db.lastError().text();
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
+			}
+
+			QJsonObject res;
+			res["success"] = true;
+			res["message"] = "管理员加票成功";
+			res["flightnumber"] = flightNumber;
+			res["departureairport"] = departureAirport;
+			res["arrivalairport"] = arrivalAirport;
+			res["departuretime"] = dbDepartureTime;
+			res["arrivaltime"] = dbArrivalTime;
+			res["price"] = price;
+			
+			return makeJsonResponse(res, QHttpServerResponse::StatusCode::Ok);
+		});
+}
+
+void AdminDeleteFlight::setupRoute(QHttpServer& server) {
+	server.route("/AdminDeleteFlight", QHttpServerRequest::Method::Post,
+		[](const QHttpServerRequest& request) {
+			qDebug() << "post to /AdminDeleteFlight";
+			QJsonParseError parseError;
+			QJsonDocument doc = QJsonDocument::fromJson(request.body(), &parseError);
+			if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "Json格式非法";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+			QJsonObject obj = doc.object();
+
+			int flightId = obj.value("flightid").toInt();
+
+			qDebug() << "    request --AdminDeleteFlight flightid:" << flightId;
+
+			// 验证必需参数
+			if (flightId <= 0) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "缺少flightid或flightid无效";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			// 连接数据库
+			QSqlDatabase mysql = MysqlInitDB::getMysql();
+			if (!mysql.isOpen()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "数据库连接失败";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
+			}
+
+			// 检查航班是否存在
+			QSqlQuery checkFlight(mysql);
+			checkFlight.prepare("SELECT * FROM flights WHERE id = ?");
+			checkFlight.addBindValue(flightId);
+			if (!checkFlight.exec()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "查询航班失败";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
+			}
+			if (!checkFlight.next()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "航班不存在";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			// 查询所有购买了此航班但未退票的用户
+			QSqlQuery findTickets(mysql);
+			findTickets.prepare("SELECT t.id, t.user_id, u.email, f.price FROM tickets t "
+				"JOIN users u ON t.user_id = u.id "
+				"JOIN flights f ON t.ticket_id = f.id "
+				"WHERE t.ticket_id = ? AND t.is_refund = false");
+			findTickets.addBindValue(flightId);
+			if (!findTickets.exec()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "查询购票记录失败";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
+			}
+
+			// 为所有未退票的用户办理退票退钱
+			int refundCount = 0;
+			while (findTickets.next()) {
+				int ticketId = findTickets.value("id").toInt();
+				int userId = findTickets.value("user_id").toInt();
+				QString userEmail = findTickets.value("email").toString();
+				int ticketPrice = findTickets.value("price").toInt();
+
+				// 标记为已退票
+				QSqlQuery refundTicket(mysql);
+				refundTicket.prepare("UPDATE tickets SET is_refund = true WHERE id = ?");
+				refundTicket.addBindValue(ticketId);
+				if (!refundTicket.exec()) {
+					QJsonObject res;
+					res["success"] = false;
+					res["errors"] = "退票处理失败";
+					return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
+				}
+
+				// 退还货币
+				QSqlQuery refundCurrency(mysql);
+				refundCurrency.prepare("UPDATE users SET currency = currency + ? WHERE email = ?");
+				refundCurrency.addBindValue(ticketPrice);
+				refundCurrency.addBindValue(userEmail);
+				if (!refundCurrency.exec()) {
+					QSqlError err = refundCurrency.lastError();
+					qDebug() << "Refund currency error:" << err.text();
+					QJsonObject res;
+					res["success"] = false;
+					res["errors"] = "退钱处理失败";
+					return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
+				}
+
+				refundCount++;
+			}
+
+			// 删除航班
+			QSqlQuery deleteFlight(mysql);
+			deleteFlight.prepare("DELETE FROM flights WHERE id = ?");
+			deleteFlight.addBindValue(flightId);
+			if (!deleteFlight.exec()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "删除航班失败: " + deleteFlight.lastError().text();
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
+			}
+
+			QJsonObject res;
+			res["success"] = true;
+			res["message"] = "删除航班成功";
+			res["flightid"] = flightId;
+			res["refundcount"] = refundCount;
+			res["refundinfo"] = QString("已为%1位用户办理退票退钱").arg(refundCount);
+			
+			return makeJsonResponse(res, QHttpServerResponse::StatusCode::Ok);
+		});
+}
