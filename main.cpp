@@ -60,6 +60,8 @@ int main(int argc, char* argv[])
     UserGetOrderDetails::setupRoute(server);
     AdminAddTicket::setupRoute(server);
     AdminDeleteFlight::setupRoute(server);
+    AdminSearchTickets::setupRoute(server);
+    AdminSearchTicketsCount::setupRoute(server);
     
     server.route(".*", QHttpServerRequest::Method::Options, [](const QHttpServerRequest& req) {
         auto headers = req.headers();

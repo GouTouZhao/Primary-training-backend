@@ -64,3 +64,13 @@ class AdminDeleteFlight {
 public:
 	static void setupRoute(QHttpServer& server);
 };
+
+class AdminSearchTickets {
+public:
+	static void setupRoute(QHttpServer& server);
+};
+
+class AdminSearchTicketsCount {
+public:
+	static void setupRoute(QHttpServer& server);
+};

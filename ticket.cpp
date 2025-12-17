@@ -1740,3 +1740,367 @@ void AdminDeleteFlight::setupRoute(QHttpServer& server) {
 			return makeJsonResponse(res, QHttpServerResponse::StatusCode::Ok);
 		});
 }
+
+void AdminSearchTickets::setupRoute(QHttpServer& server) {
+	server.route("/AdminSearchTickets", QHttpServerRequest::Method::Post,
+		[](const QHttpServerRequest& request) {
+			qDebug() << "post to /AdminSearchTickets";
+			QJsonParseError parseError;
+			QJsonDocument doc = QJsonDocument::fromJson(request.body(), &parseError);
+			if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "Json格式非法";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+			QJsonObject obj = doc.object();
+
+			QString departureAirport = obj.value("departureairport").toString();
+			QString arrivalAirport = obj.value("arrivalairport").toString();
+			QString startDate = obj.value("startdate").toString();
+			QString endDate = obj.value("enddate").toString();
+			int ticketId = obj.value("ticketid").toInt();
+			QString flightNumber = obj.value("flightnumber").toString();
+			int offset = obj.value("offset").toInt();
+			int limit = obj.value("limit").toInt();
+
+
+			// 验证分页参数
+			if (offset < 0) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "offset不能小于0";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (limit <= 0) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "limit必须大于0";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			// 连接数据库
+			QSqlDatabase mysql = MysqlInitDB::getMysql();
+			if (!mysql.isOpen()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "数据库连接失败";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
+			}
+
+			QString sqlQuery;
+			QSqlQuery db(mysql);
+			QJsonArray resdata;
+
+			// 分情况处理：锁定查询 vs 筛选查询
+			if (ticketId > 0 || !flightNumber.isEmpty()) {
+				// 锁定查询：根据ticketId或flightNumber精确查询
+				qDebug() << "执行锁定查询";
+				
+				if (ticketId > 0) {
+					// 根据票ID查询
+					sqlQuery = "SELECT id, flight_number, departure_airport, arrival_airport, departure_time, arrival_time, price FROM flights WHERE id = ?";
+					db.prepare(sqlQuery);
+					db.addBindValue(ticketId);
+				} else {
+					// 根据飞机编号查询
+					sqlQuery = "SELECT id, flight_number, departure_airport, arrival_airport, departure_time, arrival_time, price FROM flights WHERE flight_number = ?";
+					db.prepare(sqlQuery);
+					db.addBindValue(flightNumber);
+				}
+
+				if (!db.exec()) {
+					QJsonObject res;
+					res["success"] = false;
+					res["errors"] = "数据库查询失败: " + db.lastError().text();
+					return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
+				}
+
+				while (db.next()) {
+					QJsonObject ticket;
+					ticket["ticketid"] = db.value("id").toInt();
+					ticket["flightnumber"] = db.value("flight_number").toString();
+					ticket["departureairport"] = db.value("departure_airport").toString();
+					ticket["arrivalairport"] = db.value("arrival_airport").toString();
+					ticket["departuretime"] = db.value("departure_time").toString();
+					ticket["arrivaltime"] = db.value("arrival_time").toString();
+					ticket["price"] = db.value("price").toInt();
+					resdata.append(ticket);
+				}
+			} else {
+				// 筛选查询：根据机场和时间范围筛选
+				qDebug() << "执行筛选查询";
+				
+				// 构建筛选条件描述
+				QString filterDescription = "筛选条件：";
+				QStringList conditions;
+				QStringList bindValues;
+
+				if (!departureAirport.isEmpty() && departureAirport != "all") {
+					conditions << "departure_airport = ?";
+					bindValues << departureAirport;
+					filterDescription += QString("起飞机场：%1 ").arg(departureAirport);
+				}
+
+				if (!arrivalAirport.isEmpty() && arrivalAirport != "all") {
+					conditions << "arrival_airport = ?";
+					bindValues << arrivalAirport;
+					filterDescription += QString("到达机场：%1 ").arg(arrivalAirport);
+				}
+
+				if (!startDate.isEmpty() && startDate != "all") {
+					conditions << "departure_time >= ?";
+					QDateTime startDateTime = QDateTime::fromString(startDate, "yyyy-MM-dd");
+					if (!startDateTime.isValid()) {
+						QJsonObject res;
+						res["success"] = false;
+						res["errors"] = "开始日期格式不正确，应为：yyyy-MM-dd";
+						return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+					}
+					QString startDateTimeStr = startDateTime.toString("yyyy-MM-dd HH:mm:ss");
+					bindValues << startDateTimeStr;
+					filterDescription += QString("开始时间：%1 ").arg(startDate);
+				}
+
+				if (!endDate.isEmpty() && endDate != "all") {
+					conditions << "departure_time < ?";
+					QDateTime endDateTime = QDateTime::fromString(endDate, "yyyy-MM-dd");
+					if (!endDateTime.isValid()) {
+						QJsonObject res;
+						res["success"] = false;
+						res["errors"] = "结束日期格式不正确，应为：yyyy-MM-dd";
+						return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+					}
+					// 将结束日期设置为第二天的开始时间，以包含当天的所有航班
+					endDateTime = endDateTime.addDays(1);
+					QString endDateTimeStr = endDateTime.toString("yyyy-MM-dd HH:mm:ss");
+					bindValues << endDateTimeStr;
+					filterDescription += QString("结束时间：%1 ").arg(endDate);
+				}
+
+				if (conditions.isEmpty()) {
+					// 如果没有筛选条件，查询所有航班
+					sqlQuery = "SELECT id, flight_number, departure_airport, arrival_airport, departure_time, arrival_time, price FROM flights ORDER BY id LIMIT ?,?";
+					db.prepare(sqlQuery);
+					db.addBindValue(offset);
+					db.addBindValue(limit);
+					filterDescription = "查询所有航班";
+				} else {
+					// 有筛选条件，构建WHERE子句
+					QString whereClause = conditions.join(" AND ");
+					sqlQuery = QString("SELECT id, flight_number, departure_airport, arrival_airport, departure_time, arrival_time, price FROM flights WHERE %1 ORDER BY id LIMIT ?,?").arg(whereClause);
+					db.prepare(sqlQuery);
+					
+					// 绑定筛选条件的值
+					for (const QString& value : bindValues) {
+						db.addBindValue(value);
+					}
+					
+					// 绑定分页参数
+					db.addBindValue(offset);
+					db.addBindValue(limit);
+				}
+
+				qDebug() << "SQL查询语句:" << sqlQuery;
+				qDebug() << filterDescription;
+
+				if (!db.exec()) {
+					QJsonObject res;
+					res["success"] = false;
+					res["errors"] = "数据库查询失败: " + db.lastError().text();
+					return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
+				}
+
+				while (db.next()) {
+					QJsonObject ticket;
+					ticket["ticketid"] = db.value("id").toInt();
+					ticket["flightnumber"] = db.value("flight_number").toString();
+					ticket["departureairport"] = db.value("departure_airport").toString();
+					ticket["arrivalairport"] = db.value("arrival_airport").toString();
+					ticket["departuretime"] = db.value("departure_time").toString();
+					ticket["arrivaltime"] = db.value("arrival_time").toString();
+					ticket["price"] = db.value("price").toInt();
+					resdata.append(ticket);
+				}
+			}
+
+			// 构建响应
+			QJsonObject res;
+			res["success"] = true;
+			res["message"] = "管理员查询票务成功";
+			res["data"] = resdata;
+			res["count"] = resdata.size();
+			
+			// 如果是筛选查询，添加筛选描述
+			if (ticketId <= 0 && flightNumber.isEmpty()) {
+				res["filter"] = "已按条件筛选航班信息";
+			} else {
+				res["filter"] = "已按精确条件锁定航班";
+			}
+			
+			return makeJsonResponse(res, QHttpServerResponse::StatusCode::Ok);
+		});
+}
+
+void AdminSearchTicketsCount::setupRoute(QHttpServer& server) {
+	server.route("/AdminSearchTicketsCount", QHttpServerRequest::Method::Post,
+		[](const QHttpServerRequest& request) {
+			qDebug() << "post to /AdminSearchTicketsCount";
+			QJsonParseError parseError;
+			QJsonDocument doc = QJsonDocument::fromJson(request.body(), &parseError);
+			if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "Json格式非法";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+			QJsonObject obj = doc.object();
+
+			QString departureAirport = obj.value("departureairport").toString();
+			QString arrivalAirport = obj.value("arrivalairport").toString();
+			QString startDate = obj.value("startdate").toString();
+			QString endDate = obj.value("enddate").toString();
+			int ticketId = obj.value("ticketid").toInt();
+			QString flightNumber = obj.value("flightnumber").toString();
+
+
+			// 连接数据库
+			QSqlDatabase mysql = MysqlInitDB::getMysql();
+			if (!mysql.isOpen()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "数据库连接失败";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
+			}
+
+			QString sqlQuery;
+			QSqlQuery db(mysql);
+			int totalCount = 0;
+
+			// 分情况处理：锁定查询 vs 筛选查询
+			if (ticketId > 0 || !flightNumber.isEmpty()) {
+				// 锁定查询：根据ticketId或flightNumber精确查询
+				qDebug() << "执行锁定查询统计";
+				
+				if (ticketId > 0) {
+					// 根据票ID查询
+					sqlQuery = "SELECT COUNT(*) FROM flights WHERE id = ?";
+					db.prepare(sqlQuery);
+					db.addBindValue(ticketId);
+				} else {
+					// 根据飞机编号查询
+					sqlQuery = "SELECT COUNT(*) FROM flights WHERE flight_number = ?";
+					db.prepare(sqlQuery);
+					db.addBindValue(flightNumber);
+				}
+
+				if (!db.exec()) {
+					QJsonObject res;
+					res["success"] = false;
+					res["errors"] = "数据库查询失败: " + db.lastError().text();
+					return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
+				}
+
+				if (db.next()) {
+					totalCount = db.value(0).toInt();
+				}
+			} else {
+				// 筛选查询：根据机场和时间范围筛选
+				qDebug() << "执行筛选查询统计";
+				
+				// 构建筛选条件描述
+				QString filterDescription = "筛选条件：";
+				QStringList conditions;
+				QStringList bindValues;
+
+				if (!departureAirport.isEmpty() && departureAirport != "all") {
+					conditions << "departure_airport = ?";
+					bindValues << departureAirport;
+					filterDescription += QString("起飞机场：%1 ").arg(departureAirport);
+				}
+
+				if (!arrivalAirport.isEmpty() && arrivalAirport != "all") {
+					conditions << "arrival_airport = ?";
+					bindValues << arrivalAirport;
+					filterDescription += QString("到达机场：%1 ").arg(arrivalAirport);
+				}
+
+				if (!startDate.isEmpty() && startDate != "all") {
+					conditions << "departure_time >= ?";
+					QDateTime startDateTime = QDateTime::fromString(startDate, "yyyy-MM-dd");
+					if (!startDateTime.isValid()) {
+						QJsonObject res;
+						res["success"] = false;
+						res["errors"] = "开始日期格式不正确，应为：yyyy-MM-dd";
+						return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+					}
+					QString startDateTimeStr = startDateTime.toString("yyyy-MM-dd HH:mm:ss");
+					bindValues << startDateTimeStr;
+					filterDescription += QString("开始时间：%1 ").arg(startDate);
+				}
+
+				if (!endDate.isEmpty() && endDate != "all") {
+					conditions << "departure_time < ?";
+					QDateTime endDateTime = QDateTime::fromString(endDate, "yyyy-MM-dd");
+					if (!endDateTime.isValid()) {
+						QJsonObject res;
+						res["success"] = false;
+						res["errors"] = "结束日期格式不正确，应为：yyyy-MM-dd";
+						return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+					}
+					// 将结束日期设置为第二天的开始时间，以包含当天的所有航班
+					endDateTime = endDateTime.addDays(1);
+					QString endDateTimeStr = endDateTime.toString("yyyy-MM-dd HH:mm:ss");
+					bindValues << endDateTimeStr;
+					filterDescription += QString("结束时间：%1 ").arg(endDate);
+				}
+
+				if (conditions.isEmpty()) {
+					// 如果没有筛选条件，查询所有航班总数
+					sqlQuery = "SELECT COUNT(*) FROM flights";
+					db.prepare(sqlQuery);
+					filterDescription = "查询所有航班总数";
+				} else {
+					// 有筛选条件，构建WHERE子句
+					QString whereClause = conditions.join(" AND ");
+					sqlQuery = QString("SELECT COUNT(*) FROM flights WHERE %1").arg(whereClause);
+					db.prepare(sqlQuery);
+					
+					// 绑定筛选条件的值
+					for (const QString& value : bindValues) {
+						db.addBindValue(value);
+					}
+				}
+
+				qDebug() << "SQL查询语句:" << sqlQuery;
+				qDebug() << filterDescription;
+
+				if (!db.exec()) {
+					QJsonObject res;
+					res["success"] = false;
+					res["errors"] = "数据库查询失败: " + db.lastError().text();
+					return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
+				}
+
+				if (db.next()) {
+					totalCount = db.value(0).toInt();
+				}
+			}
+
+			// 构建响应
+			QJsonObject res;
+			res["success"] = true;
+			res["message"] = "管理员查询票务总数成功";
+			res["count"] = totalCount;
+			
+			// 如果是筛选查询，添加筛选描述
+			if (ticketId <= 0 && flightNumber.isEmpty()) {
+				res["filter"] = "已按条件统计航班总数";
+			} else {
+				res["filter"] = "已按精确条件统计航班总数";
+			}
+			
+			return makeJsonResponse(res, QHttpServerResponse::StatusCode::Ok);
+		});
+}
