@@ -40,6 +40,7 @@ int main(int argc, char* argv[])
     UserInfo::setupRoute(server);
     UpdateProfileColor::setupRoute(server);
     UpdateUsername::setupRoute(server);
+    AdminPasswordVerify::setupRoute(server);
     GetCurrency::setupRoute(server);
     AddCurrency::setupRoute(server);
     SubtractCurrency::setupRoute(server);

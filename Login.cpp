@@ -483,3 +483,41 @@ void UpdateUsername::setupRoute(QHttpServer& server) {
 			return makeJsonResponse(res, QHttpServerResponse::StatusCode::Ok);
 		});
 }
+
+void AdminPasswordVerify::setupRoute(QHttpServer& server) {
+	server.route("/AdminPasswordVerify", QHttpServerRequest::Method::Post,
+		[](const QHttpServerRequest& request) {
+			qDebug() << "post to /AdminPasswordVerify";
+			QJsonParseError parseError;
+			QJsonDocument doc = QJsonDocument::fromJson(request.body(), &parseError);
+			if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "Json格式非法";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+			QJsonObject obj = doc.object();
+
+			QString password = obj.value("password").toString();
+			qDebug() << "    request --admin password verify";
+
+			if (password.isEmpty()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "缺少密码字段";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			if (password == "610610") {
+				QJsonObject res;
+				res["success"] = true;
+				res["message"] = "验证成功";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::Ok);
+			} else {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "密码错误";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+		});
+}

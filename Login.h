@@ -28,3 +28,8 @@ class UpdateUsername {
 public:
 	static void setupRoute(QHttpServer& server);
 };
+
+class AdminPasswordVerify {
+public:
+	static void setupRoute(QHttpServer& server);
+};
