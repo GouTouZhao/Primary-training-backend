@@ -501,6 +501,7 @@ void GetStarTickets::setupRoute(QHttpServer& server) {
 				
 				QJsonObject ticket;
 				ticket["starid"] = db2.value("id").toInt();
+				ticket["ticketid"] = ticketId;
 				ticket["flightnumber"] = db3.value("flight_number").toString();
 				ticket["airline"] = db3.value("airline").toString();
 				ticket["departureairport"] = db3.value("departure_airport").toString();

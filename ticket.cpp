@@ -1133,6 +1133,7 @@ void UserGetOwnTickets::setupRoute(QHttpServer& server) {
 				
 				QJsonObject ticket;
 				ticket["orderid"] = db2.value("id").toInt();
+				ticket["ticketid"] = ticketId;
 				ticket["flightnumber"] = db3.value("flight_number").toString();
 				ticket["departureairport"] = db3.value("departure_airport").toString();
 				ticket["arrivalairport"] = db3.value("arrival_airport").toString();
