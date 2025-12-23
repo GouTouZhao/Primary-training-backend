@@ -995,7 +995,7 @@ void UserGetOwnTicketsNum::setupRoute(QHttpServer& server) {
 			}
 
 			QSqlQuery db2(mysql);
-			db2.prepare("SELECT COUNT(*) FROM tickets WHERE user_id = ?");
+			db2.prepare("SELECT COUNT(*) FROM tickets WHERE user_id = ? AND is_refund = 0");
 			db2.addBindValue(userid);
 			if (!db2.exec()||!db2.next()) {
 				QJsonObject res;
@@ -1105,7 +1105,7 @@ void UserGetOwnTickets::setupRoute(QHttpServer& server) {
 			}
 			
 			QSqlQuery db2(mysql);
-			db2.prepare("SELECT * FROM tickets WHERE user_id = ? LIMIT ?,?");
+			db2.prepare("SELECT * FROM tickets WHERE user_id = ? AND is_refund = 0 LIMIT ?,?");
 			db2.addBindValue(userid);
 			db2.addBindValue(offset);
 			db2.addBindValue(limit);
