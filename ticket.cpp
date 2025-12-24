@@ -1584,6 +1584,33 @@ void AdminAddTicket::setupRoute(QHttpServer& server) {
 				return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
 			}
 
+			// 检查当天是否有重复的航班号
+			QDate departureDate = departureDateTime.date();
+			QDateTime startOfDay(departureDate, QTime(0, 0, 0));
+			QDateTime endOfDay(departureDate, QTime(23, 59, 59));
+			QString startTime = startOfDay.toString("yyyy-MM-dd HH:mm:ss");
+			QString endTime = endOfDay.toString("yyyy-MM-dd HH:mm:ss");
+
+			QSqlQuery checkDuplicate(mysql);
+			checkDuplicate.prepare("SELECT COUNT(*) FROM flights WHERE flight_number = ? AND departure_time >= ? AND departure_time <= ?");
+			checkDuplicate.addBindValue(flightNumber);
+			checkDuplicate.addBindValue(startTime);
+			checkDuplicate.addBindValue(endTime);
+			
+			if (!checkDuplicate.exec()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "检查重复航班号失败";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
+			}
+			
+			if (checkDuplicate.next() && checkDuplicate.value(0).toInt() > 0) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "当天已存在相同航班号的航班";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+
 			// 插入航班数据
 			QString dbDepartureTime = departureDateTime.toString("yyyy-MM-dd HH:mm:ss");
 			QString dbArrivalTime = arrivalDateTime.toString("yyyy-MM-dd HH:mm:ss");
