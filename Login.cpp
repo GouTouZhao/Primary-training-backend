@@ -2,6 +2,7 @@
 #include<QJsonDocument>
 #include<QJsonObject>
 #include <QSqlError>
+#include<QJsonArray>
 #include "staticsource.cpp"
 
 
@@ -479,7 +480,6 @@ void UpdateUsername::setupRoute(QHttpServer& server) {
 
 			QJsonObject res;
 			res["success"] = true;
-			res["message"] = "用户名更新成功";
 			return makeJsonResponse(res, QHttpServerResponse::StatusCode::Ok);
 		});
 }
@@ -519,5 +519,171 @@ void AdminPasswordVerify::setupRoute(QHttpServer& server) {
 				res["errors"] = "密码错误";
 				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
 			}
+		});
+}
+
+void AdminGetAllUsers::setupRoute(QHttpServer& server) {
+	server.route("/AdminGetAllUsers", QHttpServerRequest::Method::Post,
+		[](const QHttpServerRequest& request) {
+			qDebug() << "post to /AdminGetAllUsers";
+			QJsonParseError parseError;
+			QJsonDocument doc = QJsonDocument::fromJson(request.body(), &parseError);
+			if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "Json格式非法";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+			qDebug() << "    request --admin get all users";
+
+			QSqlDatabase mysql = MysqlInitDB::getMysql();
+			if (!mysql.isOpen()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "数据库连接失败";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
+			}
+
+			QSqlQuery db(mysql);
+			db.prepare("SELECT id, email, username, profile_color, currency FROM users ORDER BY id");
+			if (!db.exec()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "数据库查询用户失败";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
+			}
+
+			QJsonArray users;
+			while (db.next()) {
+				QJsonObject user;
+				user["id"] = db.value("id").toInt();
+				user["email"] = db.value("email").toString();
+				user["username"] = db.value("username").toString();
+				user["profile_color"] = db.value("profile_color").toString();
+				user["currency"] = db.value("currency").toInt();
+				users.append(user);
+			}
+
+			QJsonObject res;
+			res["success"] = true;
+			res["message"] = "查询所有用户成功";
+			res["users"] = users;
+			res["count"] = users.size();
+			return makeJsonResponse(res, QHttpServerResponse::StatusCode::Ok);
+		});
+}
+
+void AdminDeleteUser::setupRoute(QHttpServer& server) {
+	server.route("/AdminDeleteUser", QHttpServerRequest::Method::Post,
+		[](const QHttpServerRequest& request) {
+			qDebug() << "post to /AdminDeleteUser";
+			QJsonParseError parseError;
+			QJsonDocument doc = QJsonDocument::fromJson(request.body(), &parseError);
+			if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "Json格式非法";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+			QJsonObject obj = doc.object();
+
+			int userId = obj.value("userid").toInt();
+			qDebug() << "    request --admin delete user";
+
+			if (userId <= 0) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "缺少用户ID";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+
+			QSqlDatabase mysql = MysqlInitDB::getMysql();
+			if (!mysql.isOpen()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "数据库连接失败";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
+			}
+
+			// 查询用户是否存在
+			QSqlQuery checkUser(mysql);
+			checkUser.prepare("SELECT id, email FROM users WHERE id = ?");
+			checkUser.addBindValue(userId);
+			if (!checkUser.exec() || !checkUser.next()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "用户不存在";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::BadRequest);
+			}
+			QString userEmail = checkUser.value("email").toString();
+
+			// 查询该用户所有未退票的订单
+			QSqlQuery findTickets(mysql);
+			findTickets.prepare("SELECT t.id, f.price FROM tickets t "
+				"JOIN flights f ON t.ticket_id = f.id "
+				"WHERE t.user_id = ? AND t.is_refund = false");
+			findTickets.addBindValue(userId);
+			if (!findTickets.exec()) {
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "查询用户票务失败";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
+			}
+
+			// 为所有未退票的订单办理退票退钱
+			int refundCount = 0;
+			while (findTickets.next()) {
+				int ticketId = findTickets.value("id").toInt();
+				int ticketPrice = findTickets.value("price").toInt();
+
+				// 标记为已退票
+				QSqlQuery refundTicket(mysql);
+				refundTicket.prepare("UPDATE tickets SET is_refund = true WHERE id = ?");
+				refundTicket.addBindValue(ticketId);
+				if (!refundTicket.exec()) {
+					QJsonObject res;
+					res["success"] = false;
+					res["errors"] = "退票处理失败";
+					return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
+				}
+
+				// 退还货币
+				QSqlQuery refundCurrency(mysql);
+				refundCurrency.prepare("UPDATE users SET currency = currency + ? WHERE email = ?");
+				refundCurrency.addBindValue(ticketPrice);
+				refundCurrency.addBindValue(userEmail);
+				if (!refundCurrency.exec()) {
+					QSqlError err = refundCurrency.lastError();
+					qDebug() << "Refund currency error:" << err.text();
+					QJsonObject res;
+					res["success"] = false;
+					res["errors"] = "退钱处理失败";
+					return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
+				}
+
+				refundCount++;
+			}
+
+			// 删除用户
+			QSqlQuery deleteUser(mysql);
+			deleteUser.prepare("DELETE FROM users WHERE id = ?");
+			deleteUser.addBindValue(userId);
+			if (!deleteUser.exec()) {
+				QSqlError err = deleteUser.lastError();
+				qDebug() << "Delete user error:" << err.text();
+				QJsonObject res;
+				res["success"] = false;
+				res["errors"] = "删除用户失败";
+				return makeJsonResponse(res, QHttpServerResponse::StatusCode::InternalServerError);
+			}
+
+			QJsonObject res;
+			res["success"] = true;
+			res["message"] = "删除用户成功";
+			res["userid"] = userId;
+			res["refundcount"] = refundCount;
+			res["refundinfo"] = QString("已为用户办理%1张票的退票退钱").arg(refundCount);
+			
+			return makeJsonResponse(res, QHttpServerResponse::StatusCode::Ok);
 		});
 }

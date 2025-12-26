@@ -33,3 +33,13 @@ class AdminPasswordVerify {
 public:
 	static void setupRoute(QHttpServer& server);
 };
+
+class AdminGetAllUsers {
+public:
+	static void setupRoute(QHttpServer& server);
+};
+
+class AdminDeleteUser {
+public:
+	static void setupRoute(QHttpServer& server);
+};
