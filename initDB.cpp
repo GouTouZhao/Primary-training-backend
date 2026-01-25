@@ -11,13 +11,22 @@ bool MysqlInitDB::init() {
 		db = QSqlDatabase::addDatabase("QMYSQL");
 	}
 
-	db.setHostName("gateway01.eu-central-1.prod.aws.tidbcloud.com");
-	db.setUserName("b8SLzcNi5Bie2pX.root");
-	db.setPassword("GRhkSSRuBNWXT2vG");
-	db.setDatabaseName("sixonezero");
-	db.setPort(4000);
-
+	// 远程数据库连接配置（已注释）
+	/*
+	db.setHostName("******");
+	db.setUserName("******");
+	db.setPassword("******");
+	db.setDatabaseName("******");
+	db.setPort(******);
 	db.setConnectOptions("SSL_CA=./isrgrootx1.pem;SSL_VERIFY_SERVER_CERT=1");
+	*/
+
+	// 本地数据库连接配置
+	db.setHostName("host.docker.internal");
+	db.setUserName("root");
+	db.setPassword("******");
+	db.setDatabaseName("******");
+	db.setPort(******);
 
 	if (!db.open()) {
 		qWarning() << "" << db.lastError().text();
