@@ -65,5 +65,12 @@ RUN cmake -B build -S . && cmake --build build -j$(nproc)
 # 6️⃣ 开放端口
 EXPOSE 8080
 
-# 7️⃣ 启动命令
+# 7️⃣ 设置环境变量默认值
+ENV DB_HOST=host.docker.internal \
+    DB_USER=root \
+    DB_PASSWORD=****** \
+    DB_NAME=****** \
+    DB_PORT=******
+
+# 8️⃣ 启动命令
 CMD ["./build/backend"]
