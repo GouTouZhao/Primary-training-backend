@@ -45,6 +45,9 @@ docker run --rm -p 8080:8080 \
   -e DB_NAME=your_database \
   -e DB_PORT=3306 \
   backend-app
+
+# windows-cmd
+docker run -d -p 8080:8080 --name backend -e DB_HOST=host.docker.internal -e DB_USER=root -e DB_PASSWORD=****** -e DB_NAME=****** -e DB_PORT=****** backend
 ```
 
 #### 方法三：使用 docker-compose（推荐）
